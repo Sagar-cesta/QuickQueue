@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - QuickQueue</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 2px 0;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .analytics-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .metric-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="p-3">
+                    <h4 class="mb-4">
+                        <i class="fas fa-ticket-alt me-2"></i>QuickQueue
+                    </h4>
+                    <nav class="nav flex-column">
+                        <a class="nav-link" href="/dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link" href="/tickets">
+                            <i class="fas fa-ticket-alt me-2"></i>All Tickets
+                        </a>
+                        <a class="nav-link" href="/tickets?status=open">
+                            <i class="fas fa-exclamation-circle me-2"></i>Open Tickets
+                        </a>
+                        <a class="nav-link" href="/tickets?status=in_progress">
+                            <i class="fas fa-clock me-2"></i>In Progress
+                        </a>
+                        <a class="nav-link" href="/tickets?status=resolved">
+                            <i class="fas fa-check-circle me-2"></i>Resolved
+                        </a>
+                        <a class="nav-link" href="/tickets?status=closed">
+                            <i class="fas fa-archive me-2"></i>Closed
+                        </a>
+                        <a class="nav-link active" href="/analytics">
+                            <i class="fas fa-chart-bar me-2"></i>Analytics
+                        </a>
+                        <hr class="my-3">
+                        <a class="nav-link" href="/logout">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>
+                        <i class="fas fa-chart-bar me-2"></i>Analytics & Reports
+                    </h2>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <span>{{ request.cookies.get('username', 'User') }}</span>
+                    </div>
+                </div>
+                
+                <!-- Monthly Metrics -->
+                <div class="analytics-card">
+                    <h5 class="mb-4">
+                        <i class="fas fa-calendar-alt me-2"></i>Monthly Overview
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                                <p class="metric-number">{{ monthly_data.total }}</p>
+                                <p class="metric-label">Total Tickets</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #dc3545, #fd7e14);">
+                                <p class="metric-number">{{ monthly_data.by_status.open }}</p>
+                                <p class="metric-label">Open</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                                <p class="metric-number">{{ monthly_data.by_status.in_progress }}</p>
+                                <p class="metric-label">In Progress</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                                <p class="metric-number">{{ monthly_data.by_status.resolved }}</p>
+                                <p class="metric-label">Resolved</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Status Distribution</h6>
+                            <div class="chart-container">
+                                <canvas id="monthlyStatusChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Priority Distribution</h6>
+                            <div class="chart-container">
+                                <canvas id="monthlyPriorityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Yearly Trends -->
+                <div class="analytics-card">
+                    <h5 class="mb-4">
+                        <i class="fas fa-chart-line me-2"></i>Yearly Trends
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="chart-container">
+                                <canvas id="yearlyTrendChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="mb-3">Year Summary</h6>
+                            <div class="metric-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                                <p class="metric-number">{{ yearly_data.total }}</p>
+                                <p class="metric-label">Total This Year</p>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6>Monthly Breakdown</h6>
+                                {% for month, count in yearly_data.by_month.items() %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>{{ month }}</span>
+                                    <span class="badge bg-primary">{{ count }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Repeat Tickets Analysis -->
+                <div class="analytics-card">
+                    <h5 class="mb-4">
+                        <i class="fas fa-redo me-2"></i>Repeat Tickets Analysis
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">
+                                <p class="metric-number">{{ repeat_tickets|length }}</p>
+                                <p class="metric-label">Repeat Tickets</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #feca57, #ff9ff3);">
+                                <p class="metric-number">
+                                    {% set total_monthly = monthly_data.by_status.open + monthly_data.by_status.in_progress + monthly_data.by_status.resolved + monthly_data.by_status.closed %}
+                                    {% if total_monthly > 0 %}
+                                        {{ "%.1f"|format((repeat_tickets|length / total_monthly) * 100) }}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </p>
+                                <p class="metric-label">Repeat Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if repeat_tickets %}
+                    <div class="mt-4">
+                        <h6>Recent Repeat Tickets</h6>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket ID</th>
+                                        <th>Title</th>
+                                        <th>Repeat Count</th>
+                                        <th>Last Occurrence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ticket in repeat_tickets[:10] %}
+                                    <tr>
+                                        <td>#{{ ticket.id }}</td>
+                                        <td>{{ ticket.title }}</td>
+                                        <td><span class="badge bg-warning">{{ ticket.repeat_count }}</span></td>
+                                        <td>{{ ticket.last_occurrence }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5 class="text-success">No Repeat Tickets</h5>
+                        <p class="text-muted">Great job! No repeat tickets found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Performance Metrics -->
+                <div class="analytics-card">
+                    <h5 class="mb-4">
+                        <i class="fas fa-tachometer-alt me-2"></i>Performance Metrics
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #00d2ff, #3a7bd5);">
+                                <p class="metric-number">2.5h</p>
+                                <p class="metric-label">Avg Response Time</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #ffecd2, #fcb69f);">
+                                <p class="metric-number">24h</p>
+                                <p class="metric-label">Avg Resolution Time</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #a8edea, #fed6e3);">
+                                <p class="metric-number">95%</p>
+                                <p class="metric-label">Customer Satisfaction</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="metric-card" style="background: linear-gradient(135deg, #d299c2, #fef9d7);">
+                                <p class="metric-number">88%</p>
+                                <p class="metric-label">First Contact Resolution</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Chart instances to prevent multiple initialization
+        let monthlyStatusChart = null;
+        let monthlyPriorityChart = null;
+        let yearlyTrendChart = null;
+        
+        function initCharts() {
+            // Monthly Status Chart
+            const monthlyStatusCtx = document.getElementById('monthlyStatusChart');
+            if (monthlyStatusCtx && !monthlyStatusChart) {
+                monthlyStatusChart = new Chart(monthlyStatusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Open', 'In Progress', 'Resolved', 'Closed'],
+                        datasets: [{
+                            data: [{{ monthly_data.by_status.open }}, {{ monthly_data.by_status.in_progress }}, {{ monthly_data.by_status.resolved }}, {{ monthly_data.by_status.closed }}],
+                            backgroundColor: ['#28a745', '#ffc107', '#17a2b8', '#6c757d']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Monthly Priority Chart
+            const monthlyPriorityCtx = document.getElementById('monthlyPriorityChart');
+            if (monthlyPriorityCtx && !monthlyPriorityChart) {
+                monthlyPriorityChart = new Chart(monthlyPriorityCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Low', 'Medium', 'High', 'Urgent'],
+                        datasets: [{
+                            label: 'Tickets',
+                            data: [{{ monthly_data.by_priority.low }}, {{ monthly_data.by_priority.medium }}, {{ monthly_data.by_priority.high }}, {{ monthly_data.by_priority.urgent }}],
+                            backgroundColor: ['#e9ecef', '#d1ecf1', '#f8d7da', '#f5c6cb']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Yearly Trend Chart
+            const yearlyTrendCtx = document.getElementById('yearlyTrendChart');
+            if (yearlyTrendCtx && !yearlyTrendChart) {
+                yearlyTrendChart = new Chart(yearlyTrendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        datasets: [{
+                            label: 'Tickets',
+                            data: [
+                                {{ yearly_data.by_month['1'] }}, {{ yearly_data.by_month['2'] }}, {{ yearly_data.by_month['3'] }},
+                                {{ yearly_data.by_month['4'] }}, {{ yearly_data.by_month['5'] }}, {{ yearly_data.by_month['6'] }},
+                                {{ yearly_data.by_month['7'] }}, {{ yearly_data.by_month['8'] }}, {{ yearly_data.by_month['9'] }},
+                                {{ yearly_data.by_month['10'] }}, {{ yearly_data.by_month['11'] }}, {{ yearly_data.by_month['12'] }}
+                            ],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Initialize charts when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+        });
+        
+        // Also initialize if DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCharts);
+        } else {
+            initCharts();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Recent Tickets - QuickQueue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Recent Tickets</h2>
+        <p class="text-muted">Last 20 tickets created</p>
+        
+        {% if tickets %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td>{{ ticket.id }}</td>
+                        <td>{{ ticket.title }}</td>
+                        <td>
+                            <span class="badge bg-{% if ticket.priority.value == 'urgent' %}danger{% elif ticket.priority.value == 'high' %}warning{% elif ticket.priority.value == 'medium' %}info{% else %}secondary{% endif %}">
+                                {{ ticket.priority.value.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if ticket.status.value == 'open' %}success{% elif ticket.status.value == 'in_progress' %}primary{% elif ticket.status.value == 'resolved' %}info{% else %}secondary{% endif %}">
+                                {{ ticket.status.value.replace('_', ' ').title() }}
+                            </span>
+                        </td>
+                        <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <h4>No tickets found</h4>
+            <p>Create your first ticket to get started!</p>
+            <a href="/create" class="btn btn-primary">Create Ticket</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

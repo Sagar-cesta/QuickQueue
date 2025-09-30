@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - QuickQueue</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 2px 0;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: none;
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        .ticket-item {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #dee2e6;
+        }
+        .ticket-item.open { border-left-color: #28a745; }
+        .ticket-item.in_progress { border-left-color: #ffc107; }
+        .ticket-item.resolved { border-left-color: #17a2b8; }
+        .ticket-item.closed { border-left-color: #6c757d; }
+        .priority-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        .priority-low { background: #e9ecef; color: #495057; }
+        .priority-medium { background: #d1ecf1; color: #0c5460; }
+        .priority-high { background: #f8d7da; color: #721c24; }
+        .priority-urgent { background: #f5c6cb; color: #721c24; }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .chart-container canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="p-3">
+                    <h4 class="mb-4">
+                        <i class="fas fa-ticket-alt me-2"></i>QuickQueue
+                    </h4>
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="/dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link" href="/tickets">
+                            <i class="fas fa-ticket-alt me-2"></i>All Tickets
+                        </a>
+                        <a class="nav-link" href="/tickets?status=open">
+                            <i class="fas fa-exclamation-circle me-2"></i>Open Tickets
+                        </a>
+                        <a class="nav-link" href="/tickets?status=in_progress">
+                            <i class="fas fa-clock me-2"></i>In Progress
+                        </a>
+                        <a class="nav-link" href="/tickets?status=resolved">
+                            <i class="fas fa-check-circle me-2"></i>Resolved
+                        </a>
+                        <a class="nav-link" href="/tickets?status=closed">
+                            <i class="fas fa-archive me-2"></i>Closed
+                        </a>
+                        <a class="nav-link" href="/analytics">
+                            <i class="fas fa-chart-bar me-2"></i>Analytics
+                        </a>
+                        {% if user.role == 'admin' %}
+                        <a class="nav-link" href="/users">
+                            <i class="fas fa-users me-2"></i>User Management
+                        </a>
+                        {% endif %}
+                        <hr class="my-3">
+                        <a class="nav-link" href="/logout">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Dashboard</h2>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <span>Welcome, {{ user.full_name }} ({{ user.role|title }})</span>
+                    </div>
+                </div>
+                
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    {% if user.role in ['admin', 'agent'] %}
+                    <div class="col-md-3 mb-3">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                                    <i class="fas fa-ticket-alt"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <p class="stat-number">{{ stats.total_tickets }}</p>
+                                    <p class="stat-label">Total Tickets</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #fd7e14);">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <p class="stat-number">{{ stats.open_tickets }}</p>
+                                    <p class="stat-label">Open Tickets</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <p class="stat-number">{{ stats.in_progress_tickets }}</p>
+                                    <p class="stat-label">In Progress</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <p class="stat-number">{{ stats.resolved_tickets }}</p>
+                                    <p class="stat-label">Resolved</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Row -->
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <div class="stat-card">
+                            <h5 class="mb-3">Ticket Status Distribution</h5>
+                            <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <h5 class="mb-3">Quick Stats</h5>
+                            <div class="row text-center">
+                                <div class="col-6 mb-3">
+                                    <div class="border-end">
+                                        <h4 class="text-primary">{{ stats.monthly_tickets }}</h4>
+                                        <small class="text-muted">This Month</small>
+                                    </div>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <h4 class="text-success">{{ stats.yearly_tickets }}</h4>
+                                    <small class="text-muted">This Year</small>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="text-center">
+                                <h4 class="text-warning">{{ stats.repeat_tickets }}</h4>
+                                <small class="text-muted">Repeat Tickets</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Tickets -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="stat-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Recent Tickets</h5>
+                                <a href="/tickets" class="btn btn-outline-primary btn-sm">View All</a>
+                            </div>
+                            
+                            {% if recent_tickets %}
+                                {% for ticket in recent_tickets %}
+                                <div class="ticket-item {{ ticket.status }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <a href="/tickets/{{ ticket.id }}" class="text-decoration-none">
+                                                    #{{ ticket.id }} {{ ticket.title }}
+                                                </a>
+                                            </h6>
+                                            <p class="text-muted mb-2">{{ ticket.description[:100] }}{% if ticket.description|length > 100 %}...{% endif %}</p>
+                                            <div class="d-flex align-items-center">
+                                                <span class="priority-badge priority-{{ ticket.priority }} me-2">
+                                                    {{ ticket.priority|title }}
+                                                </span>
+                                                <small class="text-muted me-3">
+                                                    <i class="fas fa-user me-1"></i>{{ ticket.created_by_name }}
+                                                </small>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-clock me-1"></i>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-{% if ticket.status == 'open' %}success{% elif ticket.status == 'in_progress' %}warning{% elif ticket.status == 'resolved' %}info{% else %}secondary{% endif %}">
+                                                {{ ticket.status.replace('_', ' ')|title }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-ticket-alt fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No tickets found</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Status Chart - Prevent multiple instances
+        let statusChart = null;
+        
+        function initStatusChart() {
+            const ctx = document.getElementById('statusChart');
+            if (ctx && !statusChart) {
+                statusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Open', 'In Progress', 'Resolved', 'Closed'],
+                        datasets: [{
+                            data: [{{ stats.open_tickets }}, {{ stats.in_progress_tickets }}, {{ stats.resolved_tickets }}, {{ stats.closed_tickets }}],
+                            backgroundColor: [
+                                '#28a745',
+                                '#ffc107',
+                                '#17a2b8',
+                                '#6c757d'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        aspectRatio: 1,
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            }
+                        },
+                        layout: {
+                            padding: {
+                                top: 10,
+                                bottom: 10,
+                                left: 10,
+                                right: 10
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Initialize chart when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initStatusChart();
+        });
+        
+        // Also initialize if DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initStatusChart);
+        } else {
+            initStatusChart();
+        }
+    </script>
+</body>
+</html>
